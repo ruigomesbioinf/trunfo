@@ -1,0 +1,34 @@
+[
+  {
+    "id": "q001",
+    "question": "Qual é a capital de Portugal?",
+    "correct": "Lisboa",
+    "wrong": ["Porto", "Coimbra", "Faro"],
+    "difficulty": 1,
+    "topic": "geografia"
+  },
+  {
+    "id": "q002",
+    "question": "Quem escreveu «Os Lusíadas»?",
+    "correct": "Luís de Camões",
+    "wrong": ["Fernando Pessoa", "Eça de Queirós", "José Saramago"],
+    "difficulty": 1,
+    "topic": "cultura"
+  },
+  {
+    "id": "q003",
+    "question": "Qual é o elemento químico com o símbolo Fe?",
+    "correct": "Ferro",
+    "wrong": ["Flúor", "Fósforo", "Frâncio"],
+    "difficulty": 2,
+    "topic": "ciência"
+  },
+  {
+    "id": "q004",
+    "question": "Qual é a capital do Cazaquistão?",
+    "correct": "Astana",
+    "wrong": ["Almaty", "Tasquente", "Bishkek"],
+    "difficulty": 3,
+    "topic": "geografia"
+  }
+]
