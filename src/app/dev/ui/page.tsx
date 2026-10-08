@@ -32,7 +32,7 @@ export default function KitchenSink() {
   ];
 
   return (
-    <main className="mx-auto max-w-4xl p-6">
+    <main id="main-content" className="mx-auto max-w-4xl p-6">
       <h1>Kitchen Sink</h1>
 
       <section className="mt-6">
