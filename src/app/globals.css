@@ -22,7 +22,7 @@
   --radius-lg: 0.75rem;
 
   --shadow-card: 0 4px 16px rgb(0 0 0 / 0.2);
-  --shadow-accent-glow: 0 0 24px rgb(229 176 75 / 0.222);
+  --shadow-accent-glow: 0 0 24px rgb(229 176 75 / 0.2);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

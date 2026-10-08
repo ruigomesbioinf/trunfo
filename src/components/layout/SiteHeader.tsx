@@ -20,7 +20,7 @@ export function SiteHeader() {
                 Entrar
             </ButtonLink>
 
-            <ButtonLink href="/signup" variant="primary">
+            <ButtonLink href="/signup" variant="secondary">
                 Criar conta
             </ButtonLink>
           </nav>
