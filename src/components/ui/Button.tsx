@@ -31,7 +31,7 @@ const sizeStyles: Record<ButtonSize, string> = {
 };
 
 const baseStyles =
-  "inline-flex items-center justify-center gap-2 rounded-md font-medium " +
+  "relative inline-flex items-center justify-center gap-2 rounded-md font-medium " +
   "transition-[color,background-color,filter,transform] duration-150 " +
   "disabled:cursor-not-allowed disabled:opacity-50";
 
