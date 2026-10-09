@@ -1,10 +1,10 @@
 import { createRng, seededShuffle } from "./random";
 import { parseSeed } from "./seed";
 
-export type Difficulty = 1 | 2 | 3;
+export type Difficulty = 0 | 1 | 2 | 3;
 
-export const DIFFICULTIES: readonly Difficulty[] = [1, 2, 3];
-export const QUESTIONS_PER_DIFFICULTY = 4;
+export const DIFFICULTIES: readonly Difficulty[] = [0, 1, 2, 3];
+export const QUESTIONS_PER_DIFFICULTY = 3;
 export const QUESTIONS_PER_GAME =
   DIFFICULTIES.length * QUESTIONS_PER_DIFFICULTY;
 
@@ -97,8 +97,13 @@ export function validateQuestions(raw: unknown): Question[] {
       return fail('the options must all be different ("correct" and "wrong").');
     }
 
-    if (difficulty !== 1 && difficulty !== 2 && difficulty !== 3) {
-      return fail('"difficulty" must be 1, 2 or 3.');
+    if (
+      difficulty !== 0 &&
+      difficulty !== 1 &&
+      difficulty !== 2 &&
+      difficulty !== 3
+    ) {
+      return fail('"difficulty" must be 0, 1, 2 or 3.');
     }
 
     if (topic !== undefined && !isNonEmptyString(topic)) {
@@ -123,8 +128,11 @@ function byId(a: Question, b: Question): number {
 
 // The same seed and the same bank always give the same game.
 // The order in which the random numbers are used is part of that contract:
-// first the questions of each difficulty (easy, medium, hard), then the options
-// of each question in game order.
+// first the questions of each difficulty (0 = unrated, then easy, medium, hard),
+// then the options of each question in game order.
+// A difficulty with no questions at all in the bank is skipped and its slots go
+// to the first difficulty that has some, so a bank where every question is
+// difficulty 0 still makes a full game.
 export function buildGame(
   seed: string,
   bank: readonly Question[],
@@ -138,17 +146,30 @@ export function buildGame(
   const sorted = [...bank].sort(byId);
   const picked: Question[] = [];
 
-  for (const difficulty of DIFFICULTIES) {
-    const pool = sorted.filter((q) => q.difficulty === difficulty);
+  const pools = DIFFICULTIES.map((difficulty) => ({
+    difficulty,
+    pool: sorted.filter((q) => q.difficulty === difficulty),
+  })).filter(({ pool }) => pool.length > 0);
 
-    if (pool.length < QUESTIONS_PER_DIFFICULTY) {
+  const skipped = DIFFICULTIES.length - pools.length;
+
+  pools.forEach(({ difficulty, pool }, position) => {
+    const needed =
+      QUESTIONS_PER_DIFFICULTY +
+      (position === 0 ? skipped * QUESTIONS_PER_DIFFICULTY : 0);
+
+    if (pool.length < needed) {
       throw new Error(
         `Not enough questions of difficulty ${difficulty}: ` +
-          `${pool.length} found, ${QUESTIONS_PER_DIFFICULTY} needed.`,
+          `${pool.length} found, ${needed} needed.`,
       );
     }
 
-    picked.push(...seededShuffle(pool, rng).slice(0, QUESTIONS_PER_DIFFICULTY));
+    picked.push(...seededShuffle(pool, rng).slice(0, needed));
+  });
+
+  if (picked.length === 0) {
+    throw new Error("The question bank is empty.");
   }
 
   return picked.map((q) => {

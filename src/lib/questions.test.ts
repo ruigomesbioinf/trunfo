@@ -183,11 +183,28 @@ describe("buildGame", () => {
   });
 
   it("explains when a difficulty has too few questions", () => {
-    const onlyEasy = bank.filter((q) => q.difficulty === 1);
+    const fewMedium = bank.filter(
+      (q) => q.difficulty !== 2 || q.id.endsWith("-01"),
+    );
 
-    expect(() => buildGame(seed, onlyEasy)).toThrow(
+    expect(() => buildGame(seed, fewMedium)).toThrow(
       /Not enough questions of difficulty 2/,
     );
+  });
+
+  it("builds a full game when every question has difficulty 0", () => {
+    const unrated = bank
+      .filter((q) => q.difficulty === 0)
+      .concat(
+        bank
+          .filter((q) => q.difficulty === 1)
+          .map((q) => ({ ...q, difficulty: 0 as const })),
+      );
+    const game = buildGame(seed, unrated);
+
+    expect(game).toHaveLength(QUESTIONS_PER_GAME);
+    expect(new Set(game.map((q) => q.id)).size).toBe(QUESTIONS_PER_GAME);
+    expect(game.every((q) => q.difficulty === 0)).toBe(true);
   });
 
   it("does not modify the bank", () => {
@@ -204,13 +221,14 @@ describe("buildGame", () => {
 
     expect(game.map((q) => q.id)).toEqual(
       [
-        "q1-06", "q1-01", "q1-04", "q1-07",
-        "q2-09", "q2-03", "q2-10", "q2-02",
-        "q3-06", "q3-10", "q3-01", "q3-02",
+        "q0-06", "q0-01", "q0-04",
+        "q1-09", "q1-03", "q1-10",
+        "q2-06", "q2-10", "q2-01",
+        "q3-03", "q3-10", "q3-05",
       ],
     );
     expect(game.map((q) => q.correctIndex)).toEqual([
-      3, 0, 1, 0, 1, 0, 2, 0, 2, 2, 2, 3,
+      0, 1, 0, 2, 0, 2, 2, 2, 3, 0, 1, 3,
     ]);
   });
 });

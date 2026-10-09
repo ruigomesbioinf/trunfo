@@ -26,7 +26,12 @@ type GameProps = {
   questions: ClientQuestion[];
 };
 
-const DIFFICULTY_LABELS = { 1: "Fácil", 2: "Média", 3: "Difícil" } as const;
+const DIFFICULTY_LABELS = {
+  0: null,
+  1: "Fácil",
+  2: "Média",
+  3: "Difícil",
+} as const;
 const OPTION_LETTERS = ["A", "B", "C", "D"];
 
 export function Game({ seed, questions }: GameProps) {
@@ -185,8 +190,9 @@ export function Game({ seed, questions }: GameProps) {
         <Card padding="lg">
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
             <p>
-              Pergunta {state.index + 1} de {state.total} ·{" "}
-              {DIFFICULTY_LABELS[question.difficulty]}
+              Pergunta {state.index + 1} de {state.total}
+              {DIFFICULTY_LABELS[question.difficulty] &&
+                ` · ${DIFFICULTY_LABELS[question.difficulty]}`}
             </p>
             <SeedChip className="text-sm">{seed}</SeedChip>
           </div>
