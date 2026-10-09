@@ -3,7 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { Game } from "@/components/game/Game";
 import { Card } from "@/components/ui/Card";
 import { questionBank } from "@/lib/question-bank";
-import { buildGame, toClientQuestion } from "@/lib/questions";
+import {
+  QUESTIONS_PER_GAME,
+  questionAfter,
+  toClientQuestion,
+} from "@/lib/questions";
 import { parseSeed } from "@/lib/seed";
 
 type GamePageProps = {
@@ -26,10 +30,14 @@ export default async function GamePage({ params }: GamePageProps) {
   if (!canonicalSeed) notFound();
   if (canonicalSeed !== seed) redirect(`/jogar/${canonicalSeed}`);
 
-  let questions;
+  // Only the first question is known up front: the next ones depend on the
+  // step the player reaches, so each answer check brings the following one.
+  let firstQuestion;
 
   try {
-    questions = buildGame(canonicalSeed, questionBank).map(toClientQuestion);
+    firstQuestion = toClientQuestion(
+      questionAfter(canonicalSeed, questionBank, []),
+    );
   } catch (error) {
     console.error(error);
 
@@ -52,7 +60,12 @@ export default async function GamePage({ params }: GamePageProps) {
 
   return (
     <main id="main-content" tabIndex={-1} className="flex-1">
-      <Game seed={canonicalSeed} questions={questions} />
+      <Game
+        key={canonicalSeed}
+        seed={canonicalSeed}
+        total={QUESTIONS_PER_GAME}
+        firstQuestion={firstQuestion}
+      />
     </main>
   );
 }

@@ -1,12 +1,11 @@
 import { createRng, seededShuffle } from "./random";
+import { difficultyForStep, progressAfter, type Answer } from "./game";
 import { parseSeed } from "./seed";
 
-export type Difficulty = 0 | 1 | 2 | 3;
+export type Difficulty = 1 | 2 | 3;
 
-export const DIFFICULTIES: readonly Difficulty[] = [0, 1, 2, 3];
-export const QUESTIONS_PER_DIFFICULTY = 3;
-export const QUESTIONS_PER_GAME =
-  DIFFICULTIES.length * QUESTIONS_PER_DIFFICULTY;
+export const DIFFICULTIES: readonly Difficulty[] = [1, 2, 3];
+export const QUESTIONS_PER_GAME = 12;
 
 const WRONG_OPTIONS_PER_QUESTION = 3;
 
@@ -97,13 +96,8 @@ export function validateQuestions(raw: unknown): Question[] {
       return fail('the options must all be different ("correct" and "wrong").');
     }
 
-    if (
-      difficulty !== 0 &&
-      difficulty !== 1 &&
-      difficulty !== 2 &&
-      difficulty !== 3
-    ) {
-      return fail('"difficulty" must be 0, 1, 2 or 3.');
+    if (difficulty !== 1 && difficulty !== 2 && difficulty !== 3) {
+      return fail('"difficulty" must be 1, 2 or 3.');
     }
 
     if (topic !== undefined && !isNonEmptyString(topic)) {
@@ -126,63 +120,149 @@ function byId(a: Question, b: Question): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-// The same seed and the same bank always give the same game.
-// The order in which the random numbers are used is part of that contract:
-// first the questions of each difficulty (0 = unrated, then easy, medium, hard),
-// then the options of each question in game order.
-// A difficulty with no questions at all in the bank is skipped and its slots go
-// to the first difficulty that has some, so a bank where every question is
-// difficulty 0 still makes a full game.
-export function buildGame(
-  seed: string,
-  bank: readonly Question[],
-): GameQuestion[] {
+function parseSeedOrThrow(seed: string): string {
   const canonicalSeed = parseSeed(seed);
+
   if (!canonicalSeed) {
     throw new Error(`Invalid seed: ${seed}`);
   }
 
-  const rng = createRng(canonicalSeed);
-  const sorted = [...bank].sort(byId);
-  const picked: Question[] = [];
+  return canonicalSeed;
+}
 
-  const pools = DIFFICULTIES.map((difficulty) => ({
-    difficulty,
-    pool: sorted.filter((q) => q.difficulty === difficulty),
-  })).filter(({ pool }) => pool.length > 0);
+// Which difficulty comes up depends on how the player is doing, so any
+// difficulty can be needed for any question of a game. Each one must be able
+// to fill a whole game on its own.
+function assertEnoughQuestions(bank: readonly Question[]): void {
+  for (const difficulty of DIFFICULTIES) {
+    const found = bank.filter((q) => q.difficulty === difficulty).length;
 
-  const skipped = DIFFICULTIES.length - pools.length;
-
-  pools.forEach(({ difficulty, pool }, position) => {
-    const needed =
-      QUESTIONS_PER_DIFFICULTY +
-      (position === 0 ? skipped * QUESTIONS_PER_DIFFICULTY : 0);
-
-    if (pool.length < needed) {
+    if (found < QUESTIONS_PER_GAME) {
       throw new Error(
         `Not enough questions of difficulty ${difficulty}: ` +
-          `${pool.length} found, ${needed} needed.`,
+          `${found} found, ${QUESTIONS_PER_GAME} needed.`,
       );
     }
+  }
+}
 
-    picked.push(...seededShuffle(pool, rng).slice(0, needed));
-  });
+// One roll in [0, 1) per question number. It settles the draw between two
+// difficulties on the steps of the ladder that have two.
+function difficultyRolls(seed: string): number[] {
+  const rng = createRng(`${seed}/rolls`);
 
-  if (picked.length === 0) {
-    throw new Error("The question bank is empty.");
+  return Array.from({ length: QUESTIONS_PER_GAME }, () => rng());
+}
+
+// The question that follows these answers: `answers` holds, for every question
+// already played, whether it was answered correctly and how many trunfos were
+// played on it. So the first question is questionAfter(seed, bank, []), and
+// the current one is questionAfter(seed, bank, answersSoFar).
+//
+// A game is not a fixed list of questions: the difficulty of each one depends
+// on the step the player is on (see difficultyForStep), and that depends on how
+// they answered and on the trunfos that cushioned their falls. It is still a
+// pure function of the seed, the bank and the answers, and the random numbers
+// come from separate streams, named below. They are part of the contract:
+// changing a name changes the questions of every seed that has already been
+// shared.
+// - `rolls`: one roll per question number, for the steps with two difficulties.
+// - `questions/<difficulty>`: a shuffle of that difficulty. Question number n
+//   is the nth of that shuffle, so no question is ever repeated in a game, and
+//   players asked the same difficulty at the same number get the same question.
+// - `options/<id>`: the order of the options of that question.
+export function questionAfter(
+  seed: string,
+  bank: readonly Question[],
+  answers: readonly Answer[],
+): GameQuestion {
+  const canonicalSeed = parseSeedOrThrow(seed);
+
+  const index = answers.length;
+  if (index >= QUESTIONS_PER_GAME) {
+    throw new Error(`A game only has ${QUESTIONS_PER_GAME} questions.`);
   }
 
-  return picked.map((q) => {
-    const options = seededShuffle([q.correct, ...q.wrong], rng);
+  assertEnoughQuestions(bank);
 
-    return {
-      id: q.id,
-      text: q.question,
-      difficulty: q.difficulty,
-      options,
-      correctIndex: options.indexOf(q.correct),
-    };
-  });
+  const difficulty = difficultyForStep(
+    progressAfter(answers).step,
+    difficultyRolls(canonicalSeed)[index],
+  );
+
+  const pool = bank.filter((q) => q.difficulty === difficulty).sort(byId);
+  const picked = seededShuffle(
+    pool,
+    createRng(`${canonicalSeed}/questions/${difficulty}`),
+  )[index];
+
+  const options = seededShuffle(
+    [picked.correct, ...picked.wrong],
+    createRng(`${canonicalSeed}/options/${picked.id}`),
+  );
+
+  return {
+    id: picked.id,
+    text: picked.question,
+    difficulty,
+    options,
+    correctIndex: options.indexOf(picked.correct),
+  };
+}
+
+// The option a trunfo eliminates on the question that follows `answers`.
+// `eliminated` are the options already eliminated on it, and `pair` the two the
+// player chose because they are in doubt between them. One of the two goes,
+// and never the correct one: if the pair holds the correct option, the other
+// one is eliminated; if both are wrong, one of them is picked at random.
+// That "random" is fixed by the seed and the situation, so the same request
+// always gets the same answer and asking again cannot change it. The player is
+// never told which option is the correct one. Throws if the request is not
+// possible: options that do not exist or are already eliminated, or no trunfo
+// left to play.
+export function eliminateWithTrunfo(
+  seed: string,
+  bank: readonly Question[],
+  answers: readonly Answer[],
+  eliminated: readonly number[],
+  pair: readonly number[],
+): number {
+  const canonicalSeed = parseSeedOrThrow(seed);
+  const question = questionAfter(canonicalSeed, bank, answers);
+  const isOption = (option: number) =>
+    Number.isInteger(option) && option >= 0 && option < question.options.length;
+
+  if (
+    !eliminated.every(isOption) ||
+    new Set(eliminated).size !== eliminated.length
+  ) {
+    throw new Error("The eliminated options are not valid.");
+  }
+
+  if (
+    pair.length !== 2 ||
+    !pair.every(isOption) ||
+    pair[0] === pair[1] ||
+    pair.some((option) => eliminated.includes(option))
+  ) {
+    throw new Error("A trunfo needs two different options still in play.");
+  }
+
+  if (progressAfter(answers).trunfos - eliminated.length < 1) {
+    throw new Error("There are no trunfos left to play.");
+  }
+
+  const [first, second] = [...pair].sort((a, b) => a - b);
+
+  if (first === question.correctIndex) return second;
+  if (second === question.correctIndex) return first;
+
+  const situation = [...eliminated].sort((a, b) => a - b).join("");
+  const roll = createRng(
+    `${canonicalSeed}/trunfo/${question.id}/${situation}/${first}${second}`,
+  )();
+
+  return roll < 0.5 ? first : second;
 }
 
 export function toClientQuestion(question: GameQuestion): ClientQuestion {

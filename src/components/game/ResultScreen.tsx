@@ -3,16 +3,16 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { SeedChip } from "@/components/ui/SeedChip";
-import { formatEuro, prizeAt } from "@/lib/game";
+import { formatEuro, prizeAt, type Answer } from "@/lib/game";
 
 type ResultScreenProps = {
   seed: string;
   step: number;
-  answers: boolean[];
+  answers: Answer[];
 };
 
 export function ResultScreen({ seed, step, answers }: ResultScreenProps) {
-  const correctCount = answers.filter(Boolean).length;
+  const correctCount = answers.filter((answer) => answer.correct).length;
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
@@ -33,7 +33,7 @@ export function ResultScreen({ seed, step, answers }: ResultScreenProps) {
           aria-label="Resultado de cada pergunta"
           className="mt-6 flex flex-wrap justify-center gap-2"
         >
-          {answers.map((correct, index) => (
+          {answers.map(({ correct }, index) => (
             <li
               key={index}
               className={clsx(
@@ -55,7 +55,8 @@ export function ResultScreen({ seed, step, answers }: ResultScreenProps) {
       <Card padding="lg">
         <h3 className="text-lg">Desafia alguém</h3>
         <p className="mt-2 text-muted">
-          Quem jogar esta seed recebe exatamente as mesmas perguntas.
+          Quem jogar esta seed recebe as mesmas perguntas, desde que esteja nos
+          mesmos degraus.
         </p>
 
         <p className="mt-4">

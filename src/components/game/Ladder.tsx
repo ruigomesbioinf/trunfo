@@ -93,7 +93,8 @@ export function Ladder({ step }: { step: number }) {
         </ol>
 
         <p className="mt-4 text-sm text-muted">
-          Certa: sobes 1 degrau. Errada: desces {WRONG_ANSWER_DROP}.
+          Certa: sobes 1 degrau. Errada: desces {WRONG_ANSWER_DROP}, mas cada
+          trunfo (até {WRONG_ANSWER_DROP}) amortece 1 degrau e gasta-se.
         </p>
       </Card>
     </aside>
