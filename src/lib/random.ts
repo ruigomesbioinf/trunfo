@@ -1,7 +1,3 @@
-// The hash and generator below are the public-domain xmur3 and mulberry32
-// algorithms (bryc, "JavaScript PRNGs"). Do not change them: any change
-// alters the questions of every seed that has already been shared.
-
 function xmur3(str: string): () => number {
   let h = 1779033703 ^ str.length;
 
@@ -29,12 +25,10 @@ function mulberry32(state: number): () => number {
 
 export type Rng = () => number;
 
-// Each call returns the next number in [0, 1). Pass a canonical seed.
 export function createRng(seed: string): Rng {
   return mulberry32(xmur3(seed)());
 }
 
-// Fisher–Yates shuffle. Returns a new array and leaves the input untouched.
 export function seededShuffle<T>(items: readonly T[], rng: Rng): T[] {
   const result = [...items];
 
@@ -44,4 +38,11 @@ export function seededShuffle<T>(items: readonly T[], rng: Rng): T[] {
   }
 
   return result;
+}
+
+export function randomOrder(length: number, rng: Rng = Math.random): number[] {
+  return seededShuffle(
+    Array.from({ length }, (_, index) => index),
+    rng,
+  );
 }

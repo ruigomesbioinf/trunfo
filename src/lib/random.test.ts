@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRng, seededShuffle } from "./random";
+import { createRng, randomOrder, seededShuffle } from "./random";
 
 function take(rng: () => number, count: number): number[] {
   return Array.from({ length: count }, rng);
@@ -25,8 +25,6 @@ describe("createRng", () => {
     }
   });
 
-  // Locks the algorithm. If this fails, every shared seed would change its
-  // questions: do not update the values unless that is intended.
   it("matches the recorded sequence for 7K4M-92Q", () => {
     expect(take(createRng("7K4M-92Q"), 5)).toEqual([
       0.9280652690213174,
@@ -70,5 +68,40 @@ describe("seededShuffle", () => {
   it("handles empty and single-item arrays", () => {
     expect(seededShuffle([], createRng("7K4M-92Q"))).toEqual([]);
     expect(seededShuffle(["a"], createRng("7K4M-92Q"))).toEqual(["a"]);
+  });
+});
+
+describe("randomOrder", () => {
+  it("returns every index exactly once", () => {
+    expect([...randomOrder(4)].sort((a, b) => a - b)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("is repeatable when it is given a seeded rng", () => {
+    expect(randomOrder(4, createRng("7K4M-92Q"))).toEqual(
+      randomOrder(4, createRng("7K4M-92Q")),
+    );
+  });
+
+  it("can give each of the 24 orders of 4 options", () => {
+    const seen = new Set<string>();
+
+    for (let i = 0; i < 2000; i++) {
+      seen.add(randomOrder(4, createRng(`order-${i}`)).join(""));
+    }
+
+    expect(seen.size).toBe(24);
+  });
+
+  it("is not always the same order when it is not given an rng", () => {
+    const seen = new Set<string>();
+
+    for (let i = 0; i < 200; i++) seen.add(randomOrder(4).join(""));
+
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it("handles no items and one item", () => {
+    expect(randomOrder(0)).toEqual([]);
+    expect(randomOrder(1)).toEqual([0]);
   });
 });

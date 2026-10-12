@@ -38,7 +38,6 @@ function trunfo(eliminated: number): GameAction {
   return { type: "trunfoPlayed", eliminated };
 }
 
-// Questions already played, with the trunfos played as a help on each.
 function correct(trunfosUsed = 0): Answer {
   return { correct: true, trunfosUsed };
 }
@@ -81,23 +80,21 @@ describe("resolveAnswer", () => {
 
   it("drops three steps on a wrong answer when there are no trunfos", () => {
     expect(resolveAnswer(6, 0, false)).toEqual({
-      step: 3, // 50000 -> 1000
+      step: 3,
       trunfos: 0,
       trunfosLost: 0,
     });
-    expect(resolveAnswer(5, 0, false).step).toBe(2); // 10000 -> 500
-    expect(resolveAnswer(4, 0, false).step).toBe(1); // 3000 -> 200
+    expect(resolveAnswer(5, 0, false).step).toBe(2);
+    expect(resolveAnswer(4, 0, false).step).toBe(1);
   });
 
   it("never drops below zero", () => {
-    expect(resolveAnswer(3, 0, false).step).toBe(0); // 1000 -> 0
-    expect(resolveAnswer(1, 0, false).step).toBe(0); // 200 -> 0
+    expect(resolveAnswer(3, 0, false).step).toBe(0);
+    expect(resolveAnswer(1, 0, false).step).toBe(0);
     expect(resolveAnswer(0, 0, false).step).toBe(0);
   });
 
   it("lets each trunfo, up to three, absorb a step of the fall and spends it", () => {
-    // From 50 000 €, holding 0 to 7 trunfos:
-    // [trunfos held, step reached, trunfos lost, trunfos left]
     const table = [0, 1, 2, 3, 4, 5, 6, 7].map((held) => {
       const { step, trunfos, trunfosLost } = resolveAnswer(6, held, false);
 
@@ -106,18 +103,17 @@ describe("resolveAnswer", () => {
 
     expect(table).toEqual([
       [0, 3, 0, 0],
-      [1, 4, 1, 0], // loses the trunfo and falls 2 steps
+      [1, 4, 1, 0],
       [2, 5, 2, 0],
       [3, 6, 3, 0],
       [4, 6, 3, 1],
-      [5, 6, 3, 2], // loses 3 and does not fall
+      [5, 6, 3, 2],
       [6, 6, 3, 3],
       [7, 6, 3, 4],
     ]);
   });
 
   it("spends trunfos on every step, even with little or nothing to fall", () => {
-    // The agreed rule: nothing is spared at the bottom of the ladder.
     expect(resolveAnswer(0, 5, false)).toEqual({
       step: 0,
       trunfos: 2,
@@ -131,8 +127,6 @@ describe("resolveAnswer", () => {
   });
 
   it("still falls to the floor when the trunfos only cover part of the fall", () => {
-    // 200 € with 1 trunfo: it covers 1 of the 3 steps, and the other 2 are
-    // more than there is left to fall, so the player ends on 0 €.
     expect(resolveAnswer(1, 1, false)).toEqual({
       step: 0,
       trunfos: 0,
@@ -162,8 +156,6 @@ describe("progressAfter", () => {
   });
 
   it("cushions a wrong answer with the trunfos left after playing some", () => {
-    // 4 correct answers reach 3000 €. On the next question 2 trunfos are
-    // played as a help (5 left) and the wrong answer costs 3 of those.
     expect(
       progressAfter([correct(), correct(), correct(), correct(), incorrect(2)]),
     ).toEqual({ step: 4, trunfos: 2 });
@@ -186,7 +178,7 @@ describe("progressAfter", () => {
         incorrect(),
         incorrect(),
       ]),
-    ).toEqual({ step: 2, trunfos: 0 }); // the last trunfo covers 1 of 3 steps
+    ).toEqual({ step: 2, trunfos: 0 });
   });
 
   it("rejects histories that cannot have happened", () => {
@@ -195,7 +187,6 @@ describe("progressAfter", () => {
     expect(() =>
       progressAfter([correct(MAX_TRUNFOS_PER_QUESTION + 1)]),
     ).toThrow(/Cannot play/);
-    // 3 + 3 + 3 trunfos, with only 7 to start: the third play has just 1 left.
     expect(() =>
       progressAfter([correct(3), correct(3), correct(3)]),
     ).toThrow(/Cannot play 3 trunfos holding 1/);
@@ -203,7 +194,6 @@ describe("progressAfter", () => {
 });
 
 describe("difficultyForStep", () => {
-  // Rolls from the bottom and from the top of each half of [0, 1).
   const rolls = [0, 0.25, 0.49, 0.5, 0.75, 0.99];
 
   function askedOn(prize: Prize): number[] {
@@ -320,7 +310,6 @@ describe("gameReducer", () => {
     });
   });
 
-  // Climbs 0 -> 1 -> 2 -> 3 -> 4 and then answers wrong.
   const climbThenFail = [
     { type: "start" } as const,
     right, next, right, next, right, next, right, next,
@@ -331,7 +320,7 @@ describe("gameReducer", () => {
     const withoutTrunfos = { ...createGameState(12), trunfos: 0 };
     const state = run(withoutTrunfos, ...climbThenFail);
 
-    expect(state.step).toBe(1); // the wrong answer drops 4 -> 1
+    expect(state.step).toBe(1);
     expect(state.feedback).toMatchObject({
       fromStep: 4,
       toStep: 1,
@@ -349,7 +338,7 @@ describe("gameReducer", () => {
   it("cushions a wrong answer with the trunfos and spends them", () => {
     const state = run(createGameState(12), ...climbThenFail);
 
-    expect(state.step).toBe(4); // 7 trunfos: 3 are spent and the step is kept
+    expect(state.step).toBe(4);
     expect(state.trunfos).toBe(TRUNFOS_AT_START - 3);
     expect(state.feedback).toMatchObject({
       fromStep: 4,
@@ -461,7 +450,6 @@ describe("gameReducer", () => {
   });
 
   it("plays a whole 12-question game", () => {
-    // 6 right (0 -> 6, 50000), 1 wrong (7 trunfos: 3 spent, stays), 5 right
     const answers = [
       ...Array(6).fill(right),
       wrong,
@@ -480,14 +468,13 @@ describe("gameReducer", () => {
   });
 
   it("always reaches the step and trunfos that progressAfter works out", () => {
-    // Per question: the options eliminated by trunfos, and whether it is right.
     const questions: [number[], boolean][] = [
       [[], true],
       [[1], true],
-      [[0, 2], false], // 7 - 3 = 4 trunfos held: 3 are spent
+      [[0, 2], false],
       [[], true],
       [[3], true],
-      [[], false], // nothing held: a full fall
+      [[], false],
       [[], true],
       [[], true],
       [[], true],

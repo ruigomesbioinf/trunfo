@@ -1,7 +1,6 @@
 import { Card } from "@/components/ui/Card";
 import type { GameMode } from "@/lib/modes";
 
-// How many lines each item of the intro list takes on a wide screen.
 const ITEM_LINES: Record<GameMode, readonly number[]> = {
   solo: [1, 1, 1, 2, 3, 1],
   multiplayer: [2, 1, 1, 2, 3, 1],
@@ -19,9 +18,6 @@ type GameSkeletonProps = {
   mode: GameMode;
 };
 
-// Shown while a game page is on its way. It has the size and shape of the
-// "Pronto para jogar?" screen, so nothing jumps when that one appears and the
-// main area is never empty, which is what pulled the footer up to the header.
 export function GameSkeleton({ mode }: GameSkeletonProps) {
   return (
     <main id="main-content" tabIndex={-1} aria-busy="true" className="flex-1">

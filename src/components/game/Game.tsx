@@ -24,6 +24,7 @@ import {
 } from "@/lib/game";
 import type { GameMode } from "@/lib/modes";
 import type { ClientQuestion } from "@/lib/questions";
+import { randomOrder } from "@/lib/random";
 
 type GameProps = {
   mode: GameMode;
@@ -70,7 +71,6 @@ function describeOutcome({
 }
 
 export function Game({ mode, seed, total, firstQuestion }: GameProps) {
-  // The seed only matters to share a game, and that is what multiplayer is for.
   const isMultiplayer = mode === "multiplayer";
   const title = isMultiplayer
     ? `Jogo multijogador com a seed ${seed}`
@@ -79,22 +79,18 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
     ? `Resultado do jogo multijogador com a seed ${seed}`
     : "Resultado do jogo a solo";
   const [state, dispatch] = useReducer(gameReducer, total, createGameState);
-  // Questions seen so far. The next one is only known once the current one is
-  // answered, because its difficulty depends on the step the player lands on.
   const [questions, setQuestions] = useState<ClientQuestion[]>([firstQuestion]);
+  const [orders, setOrders] = useState<number[][]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
   const [isChecking, setIsChecking] = useState(false);
   const [failure, setFailure] = useState<"answer" | "trunfo" | null>(null);
   const [pendingChoice, setPendingChoice] = useState<number | null>(null);
-  // Playing a trunfo: the player picks two options while the timer is stopped.
   const [isChoosingTrunfo, setIsChoosingTrunfo] = useState(false);
   const [pair, setPair] = useState<number[]>([]);
 
   const isCheckingRef = useRef(false);
   const onTimeUpRef = useRef<() => void>(() => {});
-  // What is left of the time of the current question, in milliseconds. It is
-  // only counted down while the player is answering, so a trunfo keeps it.
   const remainingMsRef = useRef(SECONDS_PER_QUESTION * 1000);
   const wasChoosingTrunfoRef = useRef(false);
   const questionRef = useRef<HTMLFieldSetElement>(null);
@@ -102,6 +98,10 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
 
   const question = questions[state.index];
 
+  function start() {
+    setOrders([randomOrder(firstQuestion.options.length)]);
+    dispatch({ type: "start" });
+  }
   async function submit(choice: number | null) {
     if (state.phase !== "answering" || isCheckingRef.current) return;
 
@@ -123,7 +123,10 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
         const { next } = result;
 
         if (next) {
+          const order = randomOrder(next.options.length);
+
           setQuestions((seen) => [...seen.slice(0, state.index + 1), next]);
+          setOrders((seen) => [...seen.slice(0, state.index + 1), order]);
         }
 
         dispatch({
@@ -143,15 +146,12 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
     }
   }
 
-  // Once the player chooses to play a trunfo there is no way back: they have to
-  // pick two options, otherwise stopping the timer would be free extra time.
   function startTrunfo() {
     setPair([]);
     setFailure(null);
     setIsChoosingTrunfo(true);
   }
 
-  // Exactly two options: choosing a third one replaces the oldest choice.
   function togglePair(option: number) {
     setPair((current) =>
       current.includes(option)
@@ -253,8 +253,6 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
     }
   }, [state.phase, state.index]);
 
-  // The button that was clicked disappears when the mode changes, so focus
-  // would be lost: put it back on the question.
   useEffect(() => {
     if (wasChoosingTrunfoRef.current !== isChoosingTrunfo) {
       wasChoosingTrunfoRef.current = isChoosingTrunfo;
@@ -311,7 +309,7 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
           <Button
             size="lg"
             className="mt-8 w-full shadow-accent-glow"
-            onClick={() => dispatch({ type: "start" })}
+            onClick={start}
           >
             Começar
           </Button>
@@ -337,9 +335,10 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
   const feedback = state.feedback;
   const isLocked = state.phase === "feedback" || isChecking;
   const isLast = state.index + 1 === state.total;
-  // A trunfo needs two options still in play.
   const canPlayTrunfo =
     state.trunfos > 0 && question.options.length - state.eliminated.length > 1;
+  const order =
+    orders[state.index] ?? question.options.map((_, index) => index);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
@@ -388,7 +387,8 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
               </legend>
 
               <div className="mt-6 space-y-3">
-                {question.options.map((option, index) => {
+                {order.map((index, position) => {
+                  const option = question.options[index];
                   const isCorrect = feedback?.correctIndex === index;
                   const isWrongChoice =
                     feedback !== null &&
@@ -434,7 +434,7 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
                         className="size-5 shrink-0 accent-accent"
                       />
                       <span className="font-mono text-muted">
-                        {OPTION_LETTERS[index]}
+                        {OPTION_LETTERS[position]}
                       </span>
                       <span className={clsx("flex-1", isEliminated && "line-through")}>
                         {option}
@@ -462,8 +462,12 @@ export function Game({ mode, seed, total, firstQuestion }: GameProps) {
 
             <p role="status" className="sr-only">
               {state.eliminated.length > 0
-                ? `Opções eliminadas pelo trunfo: ${state.eliminated
-                    .map((option) => OPTION_LETTERS[option])
+                ? `Opções eliminadas pelo trunfo: ${order
+                    .flatMap((index, position) =>
+                      state.eliminated.includes(index)
+                        ? [OPTION_LETTERS[position]]
+                        : [],
+                    )
                     .join(", ")}.`
                 : ""}
             </p>

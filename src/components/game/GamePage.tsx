@@ -15,15 +15,12 @@ type GamePageProps = {
   seed: string;
 };
 
-// The page of a game in the given mode, for the seed in the address.
 export async function GamePage({ mode, seed }: GamePageProps) {
   const canonicalSeed = parseSeed(seed);
 
   if (!canonicalSeed) notFound();
   if (canonicalSeed !== seed) redirect(`${MODE_PATHS[mode]}/${canonicalSeed}`);
 
-  // Only the first question is known up front: the next ones may depend on the
-  // step the player reaches, so each answer check brings the following one.
   let firstQuestion;
 
   try {

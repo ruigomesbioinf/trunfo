@@ -26,7 +26,6 @@ function makeQuestion(overrides: Partial<Question> = {}): Question {
   };
 }
 
-// 15 questions for each difficulty, ids q1-01 ... q3-15.
 function makeBank(): Question[] {
   return DIFFICULTIES.flatMap((difficulty) =>
     Array.from({ length: 15 }, (_, i) => {
@@ -42,7 +41,6 @@ function makeBank(): Question[] {
   );
 }
 
-// A question already played, with the trunfos played as a help on it.
 function correct(trunfosUsed = 0): Answer {
   return { correct: true, trunfosUsed };
 }
@@ -51,8 +49,6 @@ function incorrect(trunfosUsed = 0): Answer {
   return { correct: false, trunfosUsed };
 }
 
-// Plays a whole game without trunfos: `isRight(index)` says whether the player
-// answers question number `index` correctly. Returns the questions asked.
 function play(
   seed: string,
   bank: readonly Question[],
@@ -75,7 +71,6 @@ const allWrong = () => false;
 const alternating = (index: number) => index % 2 === 0;
 const mostlyRight = (index: number) => index % 3 !== 0;
 
-// Always the same valid seeds, spread across the seed space.
 function someSeeds(count: number): string[] {
   const rng = createRng("seeds for the tests");
 
@@ -197,7 +192,6 @@ describe("questionAfter", () => {
   });
 
   it("asks the difficulty of the step the player is on", () => {
-    // Each correct answer climbs one step: 0, 200, 500, 1000, 3000, 10 000, 50 000.
     const asked = [0, 1, 2, 3, 4, 5, 6].map(
       (climbed) =>
         questionAfter(seed, bank, Array(climbed).fill(correct())).difficulty,
@@ -213,8 +207,6 @@ describe("questionAfter", () => {
   });
 
   it("keeps the difficulty when trunfos cushion a wrong answer", () => {
-    // Four correct answers reach 3000 €. A wrong one with trunfos to spare
-    // costs trunfos, not steps, so the questions stay at 3000 € level.
     const difficulty = questionAfter(seed, bank, [
       correct(),
       correct(),
@@ -227,8 +219,6 @@ describe("questionAfter", () => {
   });
 
   it("goes back to easier questions after a wrong answer with no trunfos left", () => {
-    // 3 + 3 + 1 trunfos played as a help leave none. Reaching 3000 € and then
-    // answering wrong drops three steps to 200 €.
     expect(
       questionAfter(seed, bank, [
         correct(3),
@@ -269,7 +259,6 @@ describe("questionAfter", () => {
     const count = (asked: number[], difficulty: number) =>
       asked.filter((d) => d === difficulty).length;
 
-    // Roughly half each: both turn up often, and nothing else does.
     expect(count(on500, 1) + count(on500, 2)).toBe(seeds.length);
     expect(count(on500, 1)).toBeGreaterThanOrEqual(15);
     expect(count(on500, 2)).toBeGreaterThanOrEqual(15);
@@ -307,14 +296,12 @@ describe("questionAfter", () => {
   });
 
   it("gives players asked the same difficulty the same question", () => {
-    // After question 1 both are asked difficulty 1: one from 0 €, one from 200 €.
     expect(questionAfter(seed, bank, [incorrect()])).toEqual(
       questionAfter(seed, bank, [correct()]),
     );
   });
 
   it("gives one question per number and difficulty, whatever path led to it", () => {
-    // Every combination of 4 answers, so the player may be on any step from 0 € to 3000 €.
     const paths = Array.from({ length: 16 }, (_, n) =>
       [0, 1, 2, 3].map((bit) => ((n >> bit) & 1 ? correct() : incorrect())),
     );
@@ -360,7 +347,6 @@ describe("questionAfter", () => {
   });
 
   it("has one option more than the trunfos that can be played on a question", () => {
-    // With that many trunfos only the correct option is left.
     expect(questionAfter(seed, bank, []).options).toHaveLength(
       MAX_TRUNFOS_PER_QUESTION + 1,
     );
@@ -409,10 +395,7 @@ describe("questionAfter", () => {
     expect(bank).toEqual(copy);
   });
 
-  // Locks the selection algorithm. If this fails, shared seeds would give
-  // different questions: do not update the values unless that is intended.
   it("matches the recorded games for 7K4M-92Q", () => {
-    // Every answer right: the draws on 500 € and 3000 € both gave difficulty 2.
     const climbing = play(seed, bank, allRight);
 
     expect(climbing.map((q) => q.id)).toEqual([
@@ -426,7 +409,6 @@ describe("questionAfter", () => {
       1, 0, 2, 1, 0, 3, 0, 1, 0, 1, 0, 1,
     ]);
 
-    // Every answer wrong: stuck on the bottom step, so only difficulty 1.
     const falling = play(seed, bank, allWrong);
 
     expect(falling.map((q) => q.id)).toEqual([
@@ -443,12 +425,9 @@ describe("questionFor", () => {
   const bank = makeBank();
   const seed = "7K4M-92Q";
 
-  // The answers of a player who got the first `count` questions right.
   const perfect = (count: number): Answer[] =>
     Array.from({ length: count }, () => correct());
 
-  // Several ways of playing `count` questions, from a perfect run to one with
-  // wrong answers and trunfos played (never more than the 7 the player has).
   function histories(count: number): Answer[][] {
     return [
       perfect(count),
@@ -465,7 +444,6 @@ describe("questionFor", () => {
     expect(questionFor("solo", seed, bank, spent)).toEqual(
       questionAfter(seed, bank, spent),
     );
-    // No trunfos left to cushion the fall: back to easy questions.
     expect(questionFor("solo", seed, bank, spent).difficulty).toBe(1);
   });
 
@@ -500,11 +478,11 @@ describe("questionFor", () => {
       (q) => q.difficulty,
     );
 
-    expect(difficulties.slice(0, 2)).toEqual([1, 1]); // 0 € and 200 €
-    expect([1, 2]).toContain(difficulties[2]); // 500 €: drawn
-    expect(difficulties[3]).toBe(2); // 1000 €
-    expect([2, 3]).toContain(difficulties[4]); // 3000 €: drawn
-    expect(difficulties.slice(5)).toEqual(Array(7).fill(3)); // 10 000 € and 50 000 €
+    expect(difficulties.slice(0, 2)).toEqual([1, 1]);
+    expect([1, 2]).toContain(difficulties[2]);
+    expect(difficulties[3]).toBe(2);
+    expect([2, 3]).toContain(difficulties[4]);
+    expect(difficulties.slice(5)).toEqual(Array(7).fill(3));
   });
 
   it("gives solo and multiplayer the same questions to a player who answers everything right", () => {
@@ -529,8 +507,6 @@ describe("questionFor", () => {
     }
   });
 
-  // Locks the multiplayer sequence. If this fails, shared seeds would give
-  // different questions: do not update the values unless that is intended.
   it("matches the recorded multiplayer game for 7K4M-92Q", () => {
     const game = play(seed, bank, allWrong, "multiplayer");
 
@@ -589,7 +565,6 @@ describe.each(["solo", "multiplayer"] as const)("eliminateWithTrunfo (%s)", (mod
       const question = questionAfter(someSeed, bank, []);
       const wrongOnes = options.filter((o) => o !== question.correctIndex);
 
-      // Nothing eliminated yet, and then each wrong option eliminated before.
       for (const eliminated of [[], ...wrongOnes.map((o) => [o])]) {
         const inPlay = options.filter((o) => !eliminated.includes(o));
 
@@ -628,7 +603,6 @@ describe.each(["solo", "multiplayer"] as const)("eliminateWithTrunfo (%s)", (mod
   });
 
   it("picks at random between two wrong options, fixed by the seed", () => {
-    // Across seeds each option goes about half of the time...
     const lowerOnes = someSeeds(60).filter((someSeed) => {
       const question = questionAfter(someSeed, bank, []);
       const [a, b] = options.filter((o) => o !== question.correctIndex);
@@ -639,7 +613,6 @@ describe.each(["solo", "multiplayer"] as const)("eliminateWithTrunfo (%s)", (mod
     expect(lowerOnes).toBeGreaterThanOrEqual(15);
     expect(lowerOnes).toBeLessThanOrEqual(45);
 
-    // ...but asking again, in any order, always gives the same answer.
     const [a, b] = wrongOptions;
     const first = eliminateWithTrunfo(mode, seed, bank, [], [], [a, b]);
 
@@ -671,14 +644,12 @@ describe.each(["solo", "multiplayer"] as const)("eliminateWithTrunfo (%s)", (mod
   });
 
   it("rejects a trunfo when none are left", () => {
-    // 3 + 3 + 1 played on the first three questions: all 7 are gone.
     const allSpent = [correct(3), correct(3), correct(1)];
 
     expect(() => eliminateWithTrunfo(mode, seed, bank, allSpent, [], [0, 1])).toThrow(
       /no trunfos left/,
     );
 
-    // One is left, and it can be played once on this question but not twice.
     const oneLeft = [correct(3), correct(3)];
 
     expect(

@@ -24,7 +24,7 @@ All questions live in [`questions.json`](./questions.json). Run `npm test` after
 | `difficulty` | yes | `1` easy, `2` medium, `3` hard. Nothing else is allowed. |
 | `topic` | no | Free text (`história`, `ciência`, `geografia`, …). Never shown to players. |
 
-You don't choose the order of the options or where the correct one goes: the game shuffles them from the seed.
+You don't choose the order of the options or where the correct one goes: the game shuffles them, and every player sees them in a new random order each time, even when replaying the same seed.
 
 ## Rules for a good bank
 

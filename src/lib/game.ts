@@ -5,21 +5,12 @@ export type Prize = (typeof LADDER)[number];
 export const WRONG_ANSWER_DROP = 3;
 export const SECONDS_PER_QUESTION = 30;
 
-// Every game starts with this many trunfos. They are a help (see
-// eliminateWithTrunfo in questions.ts) and also cushion a fall (see
-// resolveAnswer).
 export const TRUNFOS_AT_START = 7;
 
-// A question has 4 options and each trunfo eliminates one that is wrong, so
-// with 3 trunfos on the same question only the correct option is left.
 export const MAX_TRUNFOS_PER_QUESTION = 3;
 
 const TOP_STEP = LADDER.length - 1;
 
-// The difficulty of the question asked while the player is on each step of the
-// ladder, by prize. Two difficulties mean a draw: each has the same chance.
-// In multiplayer the step is always the one of a player who answers everything
-// right (see questionFor in questions.ts).
 const DIFFICULTY_BY_PRIZE = {
   0: [1],
   200: [1],
@@ -30,20 +21,12 @@ const DIFFICULTY_BY_PRIZE = {
   50000: [3],
 } as const satisfies Record<Prize, readonly (1 | 2 | 3)[]>;
 
-// A question already played: whether it was answered correctly (a timeout
-// counts as wrong) and how many trunfos were played on it as a help.
 export type Answer = { correct: boolean; trunfosUsed: number };
 
 export type Progress = { step: number; trunfos: number };
 
 export type Outcome = Progress & { trunfosLost: number };
 
-// Where the player ends up after answering, holding `trunfos` at that moment
-// (the ones played as a help on this question are already spent).
-// A correct answer climbs one step, up to the top. A wrong answer or a timeout
-// drops WRONG_ANSWER_DROP steps, but every trunfo the player holds, up to that
-// many, absorbs one step of the fall and is spent doing it. That happens on
-// every step, even when there is little or nothing left to fall.
 export function resolveAnswer(
   step: number,
   trunfos: number,
@@ -62,8 +45,6 @@ export function resolveAnswer(
   };
 }
 
-// Where the player stands after playing these questions in order, from the
-// start of a game. Throws if the answers cannot have happened.
 export function progressAfter(answers: readonly Answer[]): Progress {
   return answers.reduce<Progress>(
     ({ step, trunfos }, { correct, trunfosUsed }) => {
@@ -88,8 +69,6 @@ export function prizeAt(step: number): Prize {
   return LADDER[Math.min(Math.max(step, 0), TOP_STEP)];
 }
 
-// `roll` is a number in [0, 1) that settles the draw on the steps that have
-// two difficulties: the lower half picks the first, the upper half the second.
 export function difficultyForStep(step: number, roll: number): 1 | 2 | 3 {
   const options = DIFFICULTY_BY_PRIZE[prizeAt(step)];
 
@@ -98,8 +77,6 @@ export function difficultyForStep(step: number, roll: number): 1 | 2 | 3 {
   ];
 }
 
-// pt-PT style: "200 €", "1000 €", "10 000 €". Written by hand instead of Intl
-// so the server and the browser always produce the exact same text.
 export function formatEuro(amount: number): string {
   const digits = String(amount);
   const grouped =
@@ -125,7 +102,6 @@ export type GameState = {
   index: number;
   step: number;
   trunfos: number;
-  // Options of the current question already eliminated by trunfos.
   eliminated: number[];
   answers: Answer[];
   feedback: Feedback | null;

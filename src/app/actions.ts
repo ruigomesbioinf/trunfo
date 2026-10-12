@@ -12,7 +12,6 @@ import {
 } from "@/lib/questions";
 import { parseSeed } from "@/lib/seed";
 
-// `next` is the question that follows this one, or null after the last.
 export type AnswerCheck =
   | {
       ok: true;
@@ -22,7 +21,6 @@ export type AnswerCheck =
     }
   | { ok: false };
 
-// `eliminated` is the option the trunfo took out.
 export type TrunfoCheck = { ok: true; eliminated: number } | { ok: false };
 
 function isAnswer(value: unknown): value is Answer {
@@ -37,7 +35,6 @@ function isAnswer(value: unknown): value is Answer {
   );
 }
 
-// The questions already played: there is always at least one left to answer.
 function isAnswerList(value: unknown): value is Answer[] {
   return (
     Array.isArray(value) &&
@@ -50,13 +47,6 @@ function isIntegerList(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((item) => Number.isInteger(item));
 }
 
-// `answers` says, for every question already played, whether it was answered
-// correctly and how many trunfos were played on it: from it the server works
-// out which question is being answered (in solo it also depends on the step of
-// the ladder, in multiplayer only on how many were played). `trunfosUsed` is
-// the number played on the question being answered, and `selected` is null when
-// the time ran out. Everything here is untrusted input from the browser, so it
-// is validated before use.
 export async function checkAnswer(
   mode: GameMode,
   seed: string,
@@ -90,7 +80,6 @@ export async function checkAnswer(
     const correct = selected === question.correctIndex;
     const played = [...answers, { correct, trunfosUsed }];
 
-    // Throws if the player played more trunfos than they had.
     progressAfter(played);
 
     return {
@@ -109,9 +98,6 @@ export async function checkAnswer(
   }
 }
 
-// Plays a trunfo on the question being answered: `eliminated` are the options
-// already out and `pair` the two the player is in doubt between. The server
-// takes one of the two out and never says which option is the correct one.
 export async function playTrunfo(
   mode: GameMode,
   seed: string,

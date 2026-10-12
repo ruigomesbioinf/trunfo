@@ -4,8 +4,6 @@ import { useState, type ComponentProps } from "react";
 import { Button } from "./Button";
 
 type CopyButtonProps = Omit<ComponentProps<typeof Button>, "onClick"> & {
-  // A function so values that depend on the browser (such as the page URL)
-  // are only read when the button is clicked.
   getText: () => string;
 };
 

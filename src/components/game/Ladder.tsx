@@ -10,13 +10,10 @@ const ROW_GAP_REM = 0.25;
 const ROW_PITCH_REM = ROW_HEIGHT_REM + ROW_GAP_REM;
 const STEP_MS = 320;
 const START_DELAY_MS = 150;
-// Extra rest on each rung the marker passes through while falling.
 const DROP_PAUSE_MS = 450;
 const TOP_INDEX = LADDER.length - 1;
 
 export function Ladder({ step }: { step: number }) {
-  // The marker walks one rung at a time towards `step`, so a drop from 10 000
-  // to 500 visibly slides through 3 000 and 1 000 instead of jumping.
   const [shown, setShown] = useState(step);
   const walking = useRef(false);
 

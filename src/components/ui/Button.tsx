@@ -53,7 +53,6 @@ function getButtonClasses({
   );
 }
 
-// A spinner over the label, which keeps its space so the button does not resize.
 function LoadingOverlay() {
   return (
     <span className="absolute inset-0 flex items-center justify-center">

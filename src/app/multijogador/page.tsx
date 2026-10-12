@@ -13,8 +13,6 @@ type MultiplayerPageProps = {
   searchParams: Promise<{ seed?: string | string[] }>;
 };
 
-// Without a seed it creates a new game to share; with a seed it joins that
-// game; with an invalid seed it explains the problem.
 export default async function MultiplayerPage({
   searchParams,
 }: MultiplayerPageProps) {

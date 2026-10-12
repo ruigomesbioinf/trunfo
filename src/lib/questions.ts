@@ -10,7 +10,6 @@ export const QUESTIONS_PER_GAME = 12;
 
 const WRONG_OPTIONS_PER_QUESTION = 3;
 
-// A question as written in src/data/questions.json.
 export type Question = {
   id: string;
   question: string;
@@ -20,8 +19,6 @@ export type Question = {
   topic?: string;
 };
 
-// A question as played: options are shuffled and the answer is an index.
-// Contains the answer, so it must never be sent to the browser as is.
 export type GameQuestion = {
   id: string;
   text: string;
@@ -40,7 +37,6 @@ function normalise(text: string): string {
   return text.trim().toLowerCase();
 }
 
-// Throws an Error that says exactly which question is wrong and why.
 export function validateQuestions(raw: unknown): Question[] {
   if (!Array.isArray(raw)) {
     throw new Error("The question bank must be an array.");
@@ -116,7 +112,6 @@ export function validateQuestions(raw: unknown): Question[] {
   });
 }
 
-// Plain comparison on purpose: localeCompare depends on the environment.
 function byId(a: Question, b: Question): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
@@ -131,9 +126,6 @@ function parseSeedOrThrow(seed: string): string {
   return canonicalSeed;
 }
 
-// Which difficulty comes up depends on how the player is doing, so any
-// difficulty can be needed for any question of a game. Each one must be able
-// to fill a whole game on its own.
 function assertEnoughQuestions(bank: readonly Question[]): void {
   for (const difficulty of DIFFICULTIES) {
     const found = bank.filter((q) => q.difficulty === difficulty).length;
@@ -147,32 +139,12 @@ function assertEnoughQuestions(bank: readonly Question[]): void {
   }
 }
 
-// One roll in [0, 1) per question number. It settles the draw between two
-// difficulties on the steps of the ladder that have two.
 function difficultyRolls(seed: string): number[] {
   const rng = createRng(`${seed}/rolls`);
 
   return Array.from({ length: QUESTIONS_PER_GAME }, () => rng());
 }
 
-// The question that follows these answers in solo mode: `answers` holds, for
-// every question already played, whether it was answered correctly and how many
-// trunfos were played on it. So the first question is
-// questionAfter(seed, bank, []), and the current one is
-// questionAfter(seed, bank, answersSoFar).
-//
-// A game is not a fixed list of questions: the difficulty of each one depends
-// on the step the player is on (see difficultyForStep), and that depends on how
-// they answered and on the trunfos that cushioned their falls. It is still a
-// pure function of the seed, the bank and the answers, and the random numbers
-// come from separate streams, named below. They are part of the contract:
-// changing a name changes the questions of every seed that has already been
-// shared.
-// - `rolls`: one roll per question number, for the steps with two difficulties.
-// - `questions/<difficulty>`: a shuffle of that difficulty. Question number n
-//   is the nth of that shuffle, so no question is ever repeated in a game, and
-//   players asked the same difficulty at the same number get the same question.
-// - `options/<id>`: the order of the options of that question.
 export function questionAfter(
   seed: string,
   bank: readonly Question[],
@@ -212,13 +184,6 @@ export function questionAfter(
   };
 }
 
-// The question of a game in the given mode that follows these answers.
-// - solo: the difficulty follows the step the player is on, so what a player
-//   is asked depends on how they have been doing (see questionAfter).
-// - multiplayer: every player of a seed gets exactly the same questions,
-//   whatever their progress. That is the questions of a player who answers
-//   everything right (no falls, no trunfos played), so the answers are only
-//   counted to know which question number it is.
 export function questionFor(
   mode: GameMode,
   seed: string,
@@ -236,17 +201,6 @@ export function questionFor(
   );
 }
 
-// The option a trunfo eliminates on the question of the given mode that
-// follows `answers`.
-// `eliminated` are the options already eliminated on it, and `pair` the two the
-// player chose because they are in doubt between them. One of the two goes,
-// and never the correct one: if the pair holds the correct option, the other
-// one is eliminated; if both are wrong, one of them is picked at random.
-// That "random" is fixed by the seed and the situation, so the same request
-// always gets the same answer and asking again cannot change it. The player is
-// never told which option is the correct one. Throws if the request is not
-// possible: options that do not exist or are already eliminated, or no trunfo
-// left to play.
 export function eliminateWithTrunfo(
   mode: GameMode,
   seed: string,

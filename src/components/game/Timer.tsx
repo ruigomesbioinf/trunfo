@@ -45,7 +45,6 @@ export function Timer({
         />
       </div>
 
-      {/* Announced only at a few moments, so a screen reader is not flooded. */}
       <p className="sr-only" aria-live="polite">
         {WARNINGS.includes(secondsLeft) ? `Faltam ${secondsLeft} segundos.` : ""}
       </p>
