@@ -1,30 +1,34 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { NewGameLink } from "@/components/game/NewGameLink";
+import { MODE_PATHS } from "@/lib/modes";
 import { generateSeed, parseSeed } from "@/lib/seed";
 
-export const metadata: Metadata = { title: "Jogar · Trunfo" };
+export const metadata: Metadata = { title: "Multijogador · Trunfo" };
 
-type PlayPageProps = {
+type MultiplayerPageProps = {
   searchParams: Promise<{ seed?: string | string[] }>;
 };
 
-// Without a seed it starts a new random game; with a seed it starts that
+// Without a seed it creates a new game to share; with a seed it joins that
 // game; with an invalid seed it explains the problem.
-export default async function PlayPage({ searchParams }: PlayPageProps) {
+export default async function MultiplayerPage({
+  searchParams,
+}: MultiplayerPageProps) {
   const { seed } = await searchParams;
 
   if (seed === undefined) {
-    redirect(`/jogar/${generateSeed()}`);
+    redirect(`${MODE_PATHS.multiplayer}/${generateSeed()}`);
   }
 
   const value = Array.isArray(seed) ? seed[0] : seed;
   const canonicalSeed = parseSeed(value);
 
   if (canonicalSeed) {
-    redirect(`/jogar/${canonicalSeed}`);
+    redirect(`${MODE_PATHS.multiplayer}/${canonicalSeed}`);
   }
 
   return (
@@ -35,12 +39,16 @@ export default async function PlayPage({ searchParams }: PlayPageProps) {
     >
       <h1 className="text-3xl">Seed inválida</h1>
       <p className="mt-3 text-muted">
-        Não conseguimos encontrar o jogo que procuras. Confirma a seed ou joga
-        um desafio novo.
+        Não conseguimos encontrar o jogo que procuras. Confirma a seed ou cria
+        um jogo novo.
       </p>
 
       <Card padding="lg" className="mt-8">
-        <form action="/jogar" method="get" className="space-y-4">
+        <form
+          action={MODE_PATHS.multiplayer}
+          method="get"
+          className="space-y-4"
+        >
           <Input
             name="seed"
             label="Seed"
@@ -55,15 +63,15 @@ export default async function PlayPage({ searchParams }: PlayPageProps) {
           />
 
           <Button type="submit" className="w-full">
-            Jogar com seed
+            Entrar com seed
           </Button>
         </form>
       </Card>
 
       <div className="mt-6">
-        <ButtonLink href="/jogar" prefetch={false} variant="secondary">
-          Jogar um desafio novo
-        </ButtonLink>
+        <NewGameLink mode="multiplayer" variant="secondary">
+          Criar um jogo novo
+        </NewGameLink>
       </div>
     </main>
   );

@@ -6,7 +6,8 @@ export const WRONG_ANSWER_DROP = 3;
 export const SECONDS_PER_QUESTION = 30;
 
 // Every game starts with this many trunfos. They are a help (see
-// trunfoElimination in questions.ts) and also cushion a fall (see resolveAnswer).
+// eliminateWithTrunfo in questions.ts) and also cushion a fall (see
+// resolveAnswer).
 export const TRUNFOS_AT_START = 7;
 
 // A question has 4 options and each trunfo eliminates one that is wrong, so
@@ -17,6 +18,8 @@ const TOP_STEP = LADDER.length - 1;
 
 // The difficulty of the question asked while the player is on each step of the
 // ladder, by prize. Two difficulties mean a draw: each has the same chance.
+// In multiplayer the step is always the one of a player who answers everything
+// right (see questionFor in questions.ts).
 const DIFFICULTY_BY_PRIZE = {
   0: [1],
   200: [1],

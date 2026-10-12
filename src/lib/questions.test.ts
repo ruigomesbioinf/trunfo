@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { MAX_TRUNFOS_PER_QUESTION, type Answer } from "./game";
+import type { GameMode } from "./modes";
 import { createRng } from "./random";
 import {
   DIFFICULTIES,
   QUESTIONS_PER_GAME,
   eliminateWithTrunfo,
   questionAfter,
+  questionFor,
   toClientQuestion,
   validateQuestions,
   type GameQuestion,
@@ -55,12 +57,13 @@ function play(
   seed: string,
   bank: readonly Question[],
   isRight: (index: number) => boolean,
+  mode: GameMode = "solo",
 ): GameQuestion[] {
   const answers: Answer[] = [];
   const asked: GameQuestion[] = [];
 
   for (let index = 0; index < QUESTIONS_PER_GAME; index++) {
-    asked.push(questionAfter(seed, bank, answers));
+    asked.push(questionFor(mode, seed, bank, answers));
     answers.push(isRight(index) ? correct() : incorrect());
   }
 
@@ -436,7 +439,126 @@ describe("questionAfter", () => {
   });
 });
 
-describe("eliminateWithTrunfo", () => {
+describe("questionFor", () => {
+  const bank = makeBank();
+  const seed = "7K4M-92Q";
+
+  // The answers of a player who got the first `count` questions right.
+  const perfect = (count: number): Answer[] =>
+    Array.from({ length: count }, () => correct());
+
+  // Several ways of playing `count` questions, from a perfect run to one with
+  // wrong answers and trunfos played (never more than the 7 the player has).
+  function histories(count: number): Answer[][] {
+    return [
+      perfect(count),
+      Array.from({ length: count }, () => incorrect()),
+      Array.from({ length: count }, (_, i) => (i % 2 === 0 ? correct() : incorrect())),
+      Array.from({ length: count }, (_, i) => (i % 3 === 0 ? incorrect(1) : correct(1))),
+      Array.from({ length: count }, (_, i) => (i === 0 ? correct(3) : i === 1 ? incorrect(3) : incorrect())),
+    ];
+  }
+
+  it("in solo, follows the player: it is questionAfter", () => {
+    const spent = [correct(3), correct(3), correct(1), correct(), incorrect()];
+
+    expect(questionFor("solo", seed, bank, spent)).toEqual(
+      questionAfter(seed, bank, spent),
+    );
+    // No trunfos left to cushion the fall: back to easy questions.
+    expect(questionFor("solo", seed, bank, spent).difficulty).toBe(1);
+  });
+
+  it("in multiplayer, asks the same question whatever the answers", () => {
+    for (const someSeed of someSeeds(20)) {
+      for (const count of [0, 1, 2, 4, 5, 8, 11]) {
+        const [reference, ...others] = histories(count).map((answers) =>
+          questionFor("multiplayer", someSeed, bank, answers),
+        );
+
+        for (const question of others) {
+          expect(question).toEqual(reference);
+        }
+      }
+    }
+  });
+
+  it("in multiplayer, gives every player the same game from start to end", () => {
+    const strategies = [allRight, allWrong, alternating, mostlyRight];
+    const games = strategies.map((isRight) =>
+      play(seed, bank, isRight, "multiplayer"),
+    );
+
+    for (const game of games) {
+      expect(game).toEqual(games[0]);
+    }
+    expect(games[0]).toHaveLength(QUESTIONS_PER_GAME);
+  });
+
+  it("in multiplayer, follows the ladder of a player who answers everything right", () => {
+    const difficulties = play(seed, bank, allWrong, "multiplayer").map(
+      (q) => q.difficulty,
+    );
+
+    expect(difficulties.slice(0, 2)).toEqual([1, 1]); // 0 € and 200 €
+    expect([1, 2]).toContain(difficulties[2]); // 500 €: drawn
+    expect(difficulties[3]).toBe(2); // 1000 €
+    expect([2, 3]).toContain(difficulties[4]); // 3000 €: drawn
+    expect(difficulties.slice(5)).toEqual(Array(7).fill(3)); // 10 000 € and 50 000 €
+  });
+
+  it("gives solo and multiplayer the same questions to a player who answers everything right", () => {
+    for (const someSeed of someSeeds(20)) {
+      expect(play(someSeed, bank, allRight, "multiplayer")).toEqual(
+        play(someSeed, bank, allRight, "solo"),
+      );
+    }
+  });
+
+  it("gives a different game in solo and in multiplayer once the player falls behind", () => {
+    expect(play(seed, bank, allWrong, "solo")).not.toEqual(
+      play(seed, bank, allWrong, "multiplayer"),
+    );
+  });
+
+  it("does not repeat a question in a multiplayer game", () => {
+    for (const someSeed of someSeeds(20)) {
+      const ids = play(someSeed, bank, allWrong, "multiplayer").map((q) => q.id);
+
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  // Locks the multiplayer sequence. If this fails, shared seeds would give
+  // different questions: do not update the values unless that is intended.
+  it("matches the recorded multiplayer game for 7K4M-92Q", () => {
+    const game = play(seed, bank, allWrong, "multiplayer");
+
+    expect(game.map((q) => q.id)).toEqual([
+      "q1-09", "q1-14", "q2-06", "q2-07", "q2-12", "q3-12",
+      "q3-13", "q3-08", "q3-01", "q3-06", "q3-15", "q3-05",
+    ]);
+    expect(game.map((q) => q.correctIndex)).toEqual([
+      1, 0, 2, 1, 0, 3, 0, 1, 0, 1, 0, 1,
+    ]);
+  });
+
+  it("rejects an invalid seed in both modes", () => {
+    for (const mode of ["solo", "multiplayer"] as const) {
+      expect(() => questionFor(mode, "nope", bank, [])).toThrow(/Invalid seed/);
+    }
+  });
+
+  it("rejects asking for a question after the last one in both modes", () => {
+    for (const mode of ["solo", "multiplayer"] as const) {
+      expect(() =>
+        questionFor(mode, seed, bank, Array(QUESTIONS_PER_GAME).fill(correct())),
+      ).toThrow(/only has 12 questions/);
+    }
+  });
+});
+
+describe.each(["solo", "multiplayer"] as const)("eliminateWithTrunfo (%s)", (mode) => {
   const bank = makeBank();
   const seed = "7K4M-92Q";
   const options = [0, 1, 2, 3];
@@ -446,10 +568,10 @@ describe("eliminateWithTrunfo", () => {
   it("eliminates the other option when the pair holds the correct one", () => {
     for (const wrongOption of wrongOptions) {
       expect(
-        eliminateWithTrunfo(seed, bank, [], [], [correctIndex, wrongOption]),
+        eliminateWithTrunfo(mode, seed, bank, [], [], [correctIndex, wrongOption]),
       ).toBe(wrongOption);
       expect(
-        eliminateWithTrunfo(seed, bank, [], [], [wrongOption, correctIndex]),
+        eliminateWithTrunfo(mode, seed, bank, [], [], [wrongOption, correctIndex]),
       ).toBe(wrongOption);
     }
   });
@@ -458,7 +580,7 @@ describe("eliminateWithTrunfo", () => {
     const [a, b, c] = wrongOptions;
 
     for (const pair of [[a, b], [a, c], [b, c]]) {
-      expect(pair).toContain(eliminateWithTrunfo(seed, bank, [], [], pair));
+      expect(pair).toContain(eliminateWithTrunfo(mode, seed, bank, [], [], pair));
     }
   });
 
@@ -473,7 +595,7 @@ describe("eliminateWithTrunfo", () => {
 
         for (const a of inPlay) {
           for (const b of inPlay.filter((o) => o > a)) {
-            const result = eliminateWithTrunfo(someSeed, bank, [], eliminated, [
+            const result = eliminateWithTrunfo(mode, someSeed, bank, [], eliminated, [
               a,
               b,
             ]);
@@ -495,7 +617,7 @@ describe("eliminateWithTrunfo", () => {
         const inPlay = options.filter((o) => !eliminated.includes(o));
 
         eliminated.push(
-          eliminateWithTrunfo(someSeed, bank, [], eliminated, inPlay.slice(0, 2)),
+          eliminateWithTrunfo(mode, someSeed, bank, [], eliminated, inPlay.slice(0, 2)),
         );
       }
 
@@ -511,7 +633,7 @@ describe("eliminateWithTrunfo", () => {
       const question = questionAfter(someSeed, bank, []);
       const [a, b] = options.filter((o) => o !== question.correctIndex);
 
-      return eliminateWithTrunfo(someSeed, bank, [], [], [a, b]) === a;
+      return eliminateWithTrunfo(mode, someSeed, bank, [], [], [a, b]) === a;
     }).length;
 
     expect(lowerOnes).toBeGreaterThanOrEqual(15);
@@ -519,15 +641,15 @@ describe("eliminateWithTrunfo", () => {
 
     // ...but asking again, in any order, always gives the same answer.
     const [a, b] = wrongOptions;
-    const first = eliminateWithTrunfo(seed, bank, [], [], [a, b]);
+    const first = eliminateWithTrunfo(mode, seed, bank, [], [], [a, b]);
 
-    expect(eliminateWithTrunfo(seed, bank, [], [], [a, b])).toBe(first);
-    expect(eliminateWithTrunfo(seed, bank, [], [], [b, a])).toBe(first);
+    expect(eliminateWithTrunfo(mode, seed, bank, [], [], [a, b])).toBe(first);
+    expect(eliminateWithTrunfo(mode, seed, bank, [], [], [b, a])).toBe(first);
   });
 
   it("rejects a pair that is not two different options still in play", () => {
     const attempt = (eliminated: number[], pair: number[]) => () =>
-      eliminateWithTrunfo(seed, bank, [], eliminated, pair);
+      eliminateWithTrunfo(mode, seed, bank, [], eliminated, pair);
 
     expect(attempt([], [1])).toThrow(/two different options/);
     expect(attempt([], [0, 1, 2])).toThrow(/two different options/);
@@ -541,9 +663,9 @@ describe("eliminateWithTrunfo", () => {
 
   it("rejects eliminated options that are not valid", () => {
     expect(() =>
-      eliminateWithTrunfo(seed, bank, [], [1, 1], [2, 3]),
+      eliminateWithTrunfo(mode, seed, bank, [], [1, 1], [2, 3]),
     ).toThrow(/eliminated options/);
-    expect(() => eliminateWithTrunfo(seed, bank, [], [7], [2, 3])).toThrow(
+    expect(() => eliminateWithTrunfo(mode, seed, bank, [], [7], [2, 3])).toThrow(
       /eliminated options/,
     );
   });
@@ -552,7 +674,7 @@ describe("eliminateWithTrunfo", () => {
     // 3 + 3 + 1 played on the first three questions: all 7 are gone.
     const allSpent = [correct(3), correct(3), correct(1)];
 
-    expect(() => eliminateWithTrunfo(seed, bank, allSpent, [], [0, 1])).toThrow(
+    expect(() => eliminateWithTrunfo(mode, seed, bank, allSpent, [], [0, 1])).toThrow(
       /no trunfos left/,
     );
 
@@ -560,15 +682,15 @@ describe("eliminateWithTrunfo", () => {
     const oneLeft = [correct(3), correct(3)];
 
     expect(
-      options.includes(eliminateWithTrunfo(seed, bank, oneLeft, [], [0, 1])),
+      options.includes(eliminateWithTrunfo(mode, seed, bank, oneLeft, [], [0, 1])),
     ).toBe(true);
-    expect(() => eliminateWithTrunfo(seed, bank, oneLeft, [0], [1, 2])).toThrow(
+    expect(() => eliminateWithTrunfo(mode, seed, bank, oneLeft, [0], [1, 2])).toThrow(
       /no trunfos left/,
     );
   });
 
   it("rejects an invalid seed", () => {
-    expect(() => eliminateWithTrunfo("nope", bank, [], [], [0, 1])).toThrow(
+    expect(() => eliminateWithTrunfo(mode, "nope", bank, [], [], [0, 1])).toThrow(
       /Invalid seed/,
     );
   });

@@ -1,5 +1,6 @@
 import { createRng, seededShuffle } from "./random";
 import { difficultyForStep, progressAfter, type Answer } from "./game";
+import type { GameMode } from "./modes";
 import { parseSeed } from "./seed";
 
 export type Difficulty = 1 | 2 | 3;
@@ -154,10 +155,11 @@ function difficultyRolls(seed: string): number[] {
   return Array.from({ length: QUESTIONS_PER_GAME }, () => rng());
 }
 
-// The question that follows these answers: `answers` holds, for every question
-// already played, whether it was answered correctly and how many trunfos were
-// played on it. So the first question is questionAfter(seed, bank, []), and
-// the current one is questionAfter(seed, bank, answersSoFar).
+// The question that follows these answers in solo mode: `answers` holds, for
+// every question already played, whether it was answered correctly and how many
+// trunfos were played on it. So the first question is
+// questionAfter(seed, bank, []), and the current one is
+// questionAfter(seed, bank, answersSoFar).
 //
 // A game is not a fixed list of questions: the difficulty of each one depends
 // on the step the player is on (see difficultyForStep), and that depends on how
@@ -210,7 +212,32 @@ export function questionAfter(
   };
 }
 
-// The option a trunfo eliminates on the question that follows `answers`.
+// The question of a game in the given mode that follows these answers.
+// - solo: the difficulty follows the step the player is on, so what a player
+//   is asked depends on how they have been doing (see questionAfter).
+// - multiplayer: every player of a seed gets exactly the same questions,
+//   whatever their progress. That is the questions of a player who answers
+//   everything right (no falls, no trunfos played), so the answers are only
+//   counted to know which question number it is.
+export function questionFor(
+  mode: GameMode,
+  seed: string,
+  bank: readonly Question[],
+  answers: readonly Answer[],
+): GameQuestion {
+  if (mode === "solo") return questionAfter(seed, bank, answers);
+
+  const perfect: Answer = { correct: true, trunfosUsed: 0 };
+
+  return questionAfter(
+    seed,
+    bank,
+    Array.from({ length: answers.length }, () => perfect),
+  );
+}
+
+// The option a trunfo eliminates on the question of the given mode that
+// follows `answers`.
 // `eliminated` are the options already eliminated on it, and `pair` the two the
 // player chose because they are in doubt between them. One of the two goes,
 // and never the correct one: if the pair holds the correct option, the other
@@ -221,6 +248,7 @@ export function questionAfter(
 // possible: options that do not exist or are already eliminated, or no trunfo
 // left to play.
 export function eliminateWithTrunfo(
+  mode: GameMode,
   seed: string,
   bank: readonly Question[],
   answers: readonly Answer[],
@@ -228,7 +256,7 @@ export function eliminateWithTrunfo(
   pair: readonly number[],
 ): number {
   const canonicalSeed = parseSeedOrThrow(seed);
-  const question = questionAfter(canonicalSeed, bank, answers);
+  const question = questionFor(mode, canonicalSeed, bank, answers);
   const isOption = (option: number) =>
     Number.isInteger(option) && option >= 0 && option < question.options.length;
 

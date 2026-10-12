@@ -14,6 +14,7 @@ type ButtonProps = ComponentProps<"button"> & {
 type ButtonLinkProps = ComponentProps<typeof Link> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  isLoading?: boolean;
 };
 
 const variantStyles: Record<ButtonVariant, string> = {
@@ -52,6 +53,19 @@ function getButtonClasses({
   );
 }
 
+// A spinner over the label, which keeps its space so the button does not resize.
+function LoadingOverlay() {
+  return (
+    <span className="absolute inset-0 flex items-center justify-center">
+      <span
+        aria-hidden="true"
+        className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+      />
+      <span className="sr-only">A carregar</span>
+    </span>
+  );
+}
+
 export function Button({
   variant = "primary",
   size = "md",
@@ -77,15 +91,7 @@ export function Button({
     >
       <span className={isLoading ? "invisible" : undefined}>{children}</span>
 
-      {isLoading && (
-        <span className="absolute inset-0 flex items-center justify-center">
-          <span
-            aria-hidden="true"
-            className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-          />
-          <span className="sr-only">A carregar</span>
-        </span>
-      )}
+      {isLoading && <LoadingOverlay />}
     </button>
   );
 }
@@ -93,12 +99,14 @@ export function Button({
 export function ButtonLink({
   variant = "primary",
   size = "md",
+  isLoading = false,
   className,
   children,
   ...props
 }: ButtonLinkProps) {
   return (
     <Link
+      aria-busy={isLoading ? true : undefined}
       className={getButtonClasses({
         variant,
         size,
@@ -106,7 +114,9 @@ export function ButtonLink({
       })}
       {...props}
     >
-      {children}
+      <span className={isLoading ? "invisible" : undefined}>{children}</span>
+
+      {isLoading && <LoadingOverlay />}
     </Link>
   );
 }

@@ -3,15 +3,23 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { SeedChip } from "@/components/ui/SeedChip";
+import { NewGameLink } from "@/components/game/NewGameLink";
 import { formatEuro, prizeAt, type Answer } from "@/lib/game";
+import { MODE_PATHS, type GameMode } from "@/lib/modes";
 
 type ResultScreenProps = {
+  mode: GameMode;
   seed: string;
   step: number;
   answers: Answer[];
 };
 
-export function ResultScreen({ seed, step, answers }: ResultScreenProps) {
+export function ResultScreen({
+  mode,
+  seed,
+  step,
+  answers,
+}: ResultScreenProps) {
   const correctCount = answers.filter((answer) => answer.correct).length;
 
   return (
@@ -52,34 +60,37 @@ export function ResultScreen({ seed, step, answers }: ResultScreenProps) {
         </ol>
       </Card>
 
-      <Card padding="lg">
-        <h3 className="text-lg">Desafia alguém</h3>
-        <p className="mt-2 text-muted">
-          Quem jogar esta seed recebe as mesmas perguntas, desde que esteja nos
-          mesmos degraus.
-        </p>
+      {mode === "multiplayer" && (
+        <Card padding="lg">
+          <h3 className="text-lg">Desafia alguém</h3>
+          <p className="mt-2 text-muted">
+            Quem jogar esta seed recebe exatamente as mesmas perguntas.
+          </p>
 
-        <p className="mt-4">
-          <SeedChip className="text-xl">{seed}</SeedChip>
-        </p>
+          <p className="mt-4">
+            <SeedChip className="text-xl">{seed}</SeedChip>
+          </p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <CopyButton variant="secondary" getText={() => seed}>
-            Copiar seed
-          </CopyButton>
-          <CopyButton
-            variant="secondary"
-            getText={() => `${window.location.origin}/jogar/${seed}`}
-          >
-            Copiar ligação
-          </CopyButton>
-        </div>
-      </Card>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <CopyButton variant="secondary" getText={() => seed}>
+              Copiar seed
+            </CopyButton>
+            <CopyButton
+              variant="secondary"
+              getText={() =>
+                `${window.location.origin}${MODE_PATHS.multiplayer}/${seed}`
+              }
+            >
+              Copiar ligação
+            </CopyButton>
+          </div>
+        </Card>
+      )}
 
       <div className="flex flex-wrap justify-center gap-3">
-        <ButtonLink href="/jogar" prefetch={false} size="lg">
+        <NewGameLink mode={mode} size="lg">
           Jogar de novo
-        </ButtonLink>
+        </NewGameLink>
         <ButtonLink href="/" variant="secondary" size="lg">
           Início
         </ButtonLink>

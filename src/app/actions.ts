@@ -1,11 +1,12 @@
 "use server";
 
-import { questionBank } from "@/lib/question-bank";
 import { progressAfter, type Answer } from "@/lib/game";
+import { isGameMode, type GameMode } from "@/lib/modes";
+import { questionBank } from "@/lib/question-bank";
 import {
   QUESTIONS_PER_GAME,
   eliminateWithTrunfo,
-  questionAfter,
+  questionFor,
   toClientQuestion,
   type ClientQuestion,
 } from "@/lib/questions";
@@ -51,11 +52,13 @@ function isIntegerList(value: unknown): value is number[] {
 
 // `answers` says, for every question already played, whether it was answered
 // correctly and how many trunfos were played on it: from it the server works
-// out the step of the ladder, and so the question being answered. `trunfosUsed`
-// is the number played on the question being answered, and `selected` is null
-// when the time ran out. Everything here is untrusted input from the browser,
-// so it is validated before use.
+// out which question is being answered (in solo it also depends on the step of
+// the ladder, in multiplayer only on how many were played). `trunfosUsed` is
+// the number played on the question being answered, and `selected` is null when
+// the time ran out. Everything here is untrusted input from the browser, so it
+// is validated before use.
 export async function checkAnswer(
+  mode: GameMode,
   seed: string,
   answers: Answer[],
   trunfosUsed: number,
@@ -64,6 +67,7 @@ export async function checkAnswer(
   const canonicalSeed = parseSeed(seed);
 
   if (
+    !isGameMode(mode) ||
     !canonicalSeed ||
     !isAnswerList(answers) ||
     !Number.isInteger(trunfosUsed)
@@ -72,7 +76,7 @@ export async function checkAnswer(
   }
 
   try {
-    const question = questionAfter(canonicalSeed, questionBank, answers);
+    const question = questionFor(mode, canonicalSeed, questionBank, answers);
 
     if (
       selected !== null &&
@@ -95,7 +99,9 @@ export async function checkAnswer(
       correctIndex: question.correctIndex,
       next:
         played.length < QUESTIONS_PER_GAME
-          ? toClientQuestion(questionAfter(canonicalSeed, questionBank, played))
+          ? toClientQuestion(
+              questionFor(mode, canonicalSeed, questionBank, played),
+            )
           : null,
     };
   } catch {
@@ -107,6 +113,7 @@ export async function checkAnswer(
 // already out and `pair` the two the player is in doubt between. The server
 // takes one of the two out and never says which option is the correct one.
 export async function playTrunfo(
+  mode: GameMode,
   seed: string,
   answers: Answer[],
   eliminated: number[],
@@ -115,6 +122,7 @@ export async function playTrunfo(
   const canonicalSeed = parseSeed(seed);
 
   if (
+    !isGameMode(mode) ||
     !canonicalSeed ||
     !isAnswerList(answers) ||
     !isIntegerList(eliminated) ||
@@ -127,6 +135,7 @@ export async function playTrunfo(
     return {
       ok: true,
       eliminated: eliminateWithTrunfo(
+        mode,
         canonicalSeed,
         questionBank,
         answers,

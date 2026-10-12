@@ -2,7 +2,7 @@
 
 import { useEffect, useReducer, useRef, useState, type FormEvent } from "react";
 import clsx from "clsx";
-import { checkAnswer, playTrunfo } from "@/app/jogar/[seed]/actions";
+import { checkAnswer, playTrunfo } from "@/app/actions";
 import { Ladder } from "@/components/game/Ladder";
 import { ResultScreen } from "@/components/game/ResultScreen";
 import { Timer } from "@/components/game/Timer";
@@ -22,9 +22,11 @@ import {
   prizeAt,
   type Feedback,
 } from "@/lib/game";
+import type { GameMode } from "@/lib/modes";
 import type { ClientQuestion } from "@/lib/questions";
 
 type GameProps = {
+  mode: GameMode;
   seed: string;
   total: number;
   firstQuestion: ClientQuestion;
@@ -67,7 +69,15 @@ function describeOutcome({
     : `${spent} e desceste para ${prize}.`;
 }
 
-export function Game({ seed, total, firstQuestion }: GameProps) {
+export function Game({ mode, seed, total, firstQuestion }: GameProps) {
+  // The seed only matters to share a game, and that is what multiplayer is for.
+  const isMultiplayer = mode === "multiplayer";
+  const title = isMultiplayer
+    ? `Jogo multijogador com a seed ${seed}`
+    : "Jogo a solo";
+  const resultTitle = isMultiplayer
+    ? `Resultado do jogo multijogador com a seed ${seed}`
+    : "Resultado do jogo a solo";
   const [state, dispatch] = useReducer(gameReducer, total, createGameState);
   // Questions seen so far. The next one is only known once the current one is
   // answered, because its difficulty depends on the step the player lands on.
@@ -102,6 +112,7 @@ export function Game({ seed, total, firstQuestion }: GameProps) {
 
     try {
       const result = await checkAnswer(
+        mode,
         seed,
         state.answers,
         state.eliminated.length,
@@ -166,6 +177,7 @@ export function Game({ seed, total, firstQuestion }: GameProps) {
 
     try {
       const result = await playTrunfo(
+        mode,
         seed,
         state.answers,
         state.eliminated,
@@ -253,15 +265,16 @@ export function Game({ seed, total, firstQuestion }: GameProps) {
   if (state.phase === "intro") {
     return (
       <div className="mx-auto max-w-xl px-4 py-12 sm:py-16">
-        <h1 className="sr-only">Jogo com a seed {seed}</h1>
+        <h1 className="sr-only">{title}</h1>
 
         <Card padding="lg">
           <h2 className="text-3xl">Pronto para jogar?</h2>
 
           <ul role="list" className="mt-6 space-y-2 text-muted">
             <li>
-              {total} perguntas. Quanto mais alto o degrau, mais difícil a
-              pergunta.
+              {isMultiplayer
+                ? `${total} perguntas, das mais fáceis às mais difíceis, iguais para todos os jogadores desta seed.`
+                : `${total} perguntas. Quanto mais alto o degrau, mais difícil a pergunta.`}
             </li>
             <li>{SECONDS_PER_QUESTION} segundos para responder a cada uma.</li>
             <li>Resposta certa: sobes 1 degrau da escada.</li>
@@ -281,15 +294,19 @@ export function Game({ seed, total, firstQuestion }: GameProps) {
             </li>
           </ul>
 
-          <div className="mt-8 border-t border-border pt-6">
-            <p className="text-sm text-muted">Seed deste jogo</p>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <SeedChip className="text-xl">{seed}</SeedChip>
-              <CopyButton variant="ghost" getText={() => seed}>
-                Copiar seed
-              </CopyButton>
+          {isMultiplayer && (
+            <div className="mt-8 border-t border-border pt-6">
+              <p className="text-sm text-muted">
+                Seed deste jogo: partilha-a para jogarem as mesmas perguntas.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <SeedChip className="text-xl">{seed}</SeedChip>
+                <CopyButton variant="ghost" getText={() => seed}>
+                  Copiar seed
+                </CopyButton>
+              </div>
             </div>
-          </div>
+          )}
 
           <Button
             size="lg"
@@ -306,8 +323,13 @@ export function Game({ seed, total, firstQuestion }: GameProps) {
   if (state.phase === "finished") {
     return (
       <div className="px-4 py-12 sm:py-16">
-        <h1 className="sr-only">Resultado do jogo com a seed {seed}</h1>
-        <ResultScreen seed={seed} step={state.step} answers={state.answers} />
+        <h1 className="sr-only">{resultTitle}</h1>
+        <ResultScreen
+          mode={mode}
+          seed={seed}
+          step={state.step}
+          answers={state.answers}
+        />
       </div>
     );
   }
@@ -321,7 +343,7 @@ export function Game({ seed, total, firstQuestion }: GameProps) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
-      <h1 className="sr-only">Jogo com a seed {seed}</h1>
+      <h1 className="sr-only">{title}</h1>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_16rem]">
         <Card padding="lg">
@@ -330,7 +352,7 @@ export function Game({ seed, total, firstQuestion }: GameProps) {
               Pergunta {state.index + 1} de {state.total} ·{" "}
               {DIFFICULTY_LABELS[question.difficulty]}
             </p>
-            <SeedChip className="text-sm">{seed}</SeedChip>
+            {isMultiplayer && <SeedChip className="text-sm">{seed}</SeedChip>}
           </div>
 
           {state.phase === "answering" && (
